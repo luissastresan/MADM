@@ -1,0 +1,128 @@
+---
+title: "Exercise 2"
+output: html_document
+---
+
+# Exercise 2. Networks
+
+#
+#
+
+
+### Daniel H. Vedia Jerez
+### Luís Sastre San Emeterio
+
+#
+#
+
+#### 1 & 2) Enter it as a graph G & connecting nodes A and F
+
+```{r setup, include = FALSE}
+
+library(igraph)          # load a package
+
+## 1 & 2) Enter it as a graph G & connecting nodes A and F
+G00 <- graph(edges=c('D','C','G','D','G','F','F','C','D','B','H','F','E','A','H','E',
+                   'C','B' ), directed=F) 
+plot(G00, vertex.color="gold", vertex.size=15, 
+     vertex.frame.color="gray", vertex.label.color="black", 
+     vertex.label.cex=1.5, vertex.label.dist=2, edge.curved=0.2)
+```
+
+```{r}
+plot(G00)
+```
+
+Connection nodes A & F
+
+```{r , include = FALSE}
+G <- graph(edges=c('D','C','G','D','G','F','F','C','D','B','H','F','E','A','H','E','F'
+                   ,'A','C','B' ), directed=F) 
+plot(G, vertex.color="gold", vertex.size=15, 
+     vertex.frame.color="gray", vertex.label.color="black", 
+     vertex.label.cex=1.5, vertex.label.dist=2, edge.curved=0.2)
+```
+
+```{r}
+plot(G)
+```
+
+#### 3 & 4) Obtain its vectors of edges and nodes of graph G
+
+```{r}
+E(G)
+V(G)
+```
+
+#### 5) graph H from this adjacency matrix
+
+```{r}
+am <- as_adjacency_matrix(G)
+```
+```{r, include=FALSE} 
+H <- graph_from_adjacency_matrix( am, mode = 'undirected' )
+plot(H, vertex.color="yellow", vertex.size=15, 
+     vertex.frame.color="gray", vertex.label.color="black", 
+     vertex.label.cex=1.5, vertex.label.dist=2, edge.curved=0.2)
+```
+
+```{r}
+plot(H)
+```
+
+#### 6) Find the order, the size and the density of G
+```{r}
+gorder(G)
+gsize(G)
+edge_density(G, loops = FALSE)
+```
+
+#### 7) Find the largest degree of nodes in G.
+```{r}
+max.deg <- degree(G, mode="all")
+plot(G, vertex.size=45)
+hist(max.deg, breaks=1:vcount(G)-1, main="Histogram of node degree", col='green')
+```
+
+#### 8)  A directed graph G0 from the graph in Figure 1
+```{r}
+G0 <- graph(edges=c('C','D','D','G','G','F','C','F','B','D','F','H','A','E','E','H','A'
+                   ,'F','B','C' ), directed=TRUE) 
+plot(G0)
+```
+
+#### 9) Obtain its vectors of arcs and nodes of grapg G0
+
+```{r}
+E(G0)
+V(G0)
+```
+
+#### 10) Obtain the adjacency matrix of G0.
+```{r}
+am0 <- as_adjacency_matrix(G0)
+```
+
+#### 11) Deleting node D &  add to it new arcs between its neighbors
+
+```{r}
+g10 <- graph_from_literal(c-+d:h+-g:g+-c, a-+e-+h+-d+-b-+c)
+plot(g10)
+```
+
+#### 12) Simplify it and plot it again & call it G1
+
+Deleting nodes A & G to simplify the Graph G10
+
+```{r}
+G1 <- simplify(g10, remove.multiple = TRUE, remove.loops = TRUE)
+plot(G1)
+```
+
+#### 13) Find the largest degree of nodes in G1.
+```{r}
+max.deg1 <- degree(G1, mode="all")
+plot(G1, vertex.size=40)
+hist(max.deg1, breaks=1:vcount(G1)-1, main="Histogram of node degree", col = 'orange')
+```
+

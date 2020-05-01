@@ -1,0 +1,393 @@
+---
+title: "TAREA 2"
+author: "LUIS SASTRE SAN EMETERIO"
+date: "4/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Para realizar el trabajo me he apoyado en los scrips de clase, asi como en un tutorial de Udemy sobre redes neuronales. https://www.udemy.com/course/machinelearning-es
+
+# PREGUNTA 1
+
+La propagación hacia atrás o Backpropagation es una de las últimas fases de cada una de las iteraciónes que realiza la red neuronal, de modo que todos los pesos se ajustan simultaneamente. Es la fase donde la red neuronal se responsabiliza de los errores cometidos en el calculo de los pesos de la misma. Este proceso se repite hasta que se consigue optimizar la función de costes con los pesos.
+
+
+
+# PREGUNTA 2
+
+## Los Datos
+
+Cargamos las librerias necesararias para ejecutar los algoritmos e importamos el dataset que vamos a utilizar.
+```{r message=FALSE}
+library(neuralnet)
+library(caTools)
+library(rpart)
+library(e1071)
+library(plyr)
+library(caret)
+```
+
+```{r}
+data = read.csv("haberman.csv")
+```
+
+El dataset contiene 306 obervaciones y 4 variables. El nombre de las variables son: **Age_of_patient_at_time_of_operation**, **Patients_year_of_operation**, **Number_of_positive_axillary_nodes_detected**, **Survival_status**
+```{r}
+dim(data)
+```
+
+```{r}
+colnames(data)
+```
+
+Para que sea más manejable el dataset, vamos a renombrar las variables. Ahora seran: **Age**, **Year**, **Nodes**, **Status**
+```{r}
+names(data) = c("Age", "Year", "Nodes", "Status")
+```
+
+Vemos si hay Na's
+```{r}
+apply(data,2,function(x) sum(is.na(x))) 
+```
+
+## Preparamos los Datos
+
+Creamos una funcion para normalizar las variables del Dataset
+```{r}
+normalize.minmaxbinary = function(v){
+  return((v-min(v))/(max(v)-min(v)))
+}
+normalize.minmaxbipolar = function(v){
+  return((v-min(v))/(max(v)-min(v))*(1-(-1))+(-1))
+}
+```
+
+Normalizamos el Dataset
+```{r}
+data_n = as.data.frame(apply(data, 2, normalize.minmaxbinary)) 
+```
+
+Dividimos en conjunto de entrenamiento y test (75% y 25% respectivamente), uno para los datos sin escalar y el otro con los datos escalados
+
+Sin escalar
+```{r}
+set.seed(333)
+split = sample.split(data$Status, SplitRatio = 0.75)
+training_set = subset(data, split == TRUE)
+testing_set = subset(data, split == FALSE)
+```
+
+Escalados
+```{r}
+set.seed(3333)
+split = sample.split(data_n$Status, SplitRatio = 0.75)
+training_set_n = subset(data_n, split == TRUE)
+testing_set_n = subset(data_n, split == FALSE)
+```
+
+## Objetivo
+
+Vamos a crear tres regresores de ANN distintos, en cada uno modificaremos los parametros de la red neuronal para poder conseguir la mejor predicción posible. Para poder evaluar dicho acierto calcularemos su MSE. Además, crearemos varios regresores con los algoritmos de: **Regresión Lineal**, **Regresión Multiple**, **Arboles de Dcisión** y **Maquina de Soporte Vectorial** y calcularemos su MSE para poder compararlos.
+
+## ANN
+
+Creamos el primer regresor de la red neuronal entrenando con el conjunto de trainning. Usamos dos capas con 3 neuronas y un threshold del 0.1
+```{r}
+regressor_ann = neuralnet(Status ~ Age + Year + Nodes,
+                        training_set_n, hidden = c(3,3),
+                        linear.output = T, threshold = 0.1)
+```
+
+Representamos la Red Neuronal
+```{r}
+plot(regressor_ann)
+```
+
+Vamos a hacer las predicciones con nuestro regresor en el Conjunto de testing
+```{r}
+y_pred_an = predict(regressor_ann, testing_set_n[, -4])
+```
+
+Lo desnormalizamos para poder intrepetar el resultado
+```{r}
+y_pred_ann = y_pred_an*
+  (max(data$Status)-min(data$Status))+min(data$Status)
+```
+
+```{r}
+actual = testing_set$Status
+cbind(actual,y_pred_ann)
+```
+
+Calculamos el MSE para evaluar la eficacia del modelo de predicción
+```{r}
+n = nrow(testing_set)
+MSE.ann = sum((actual - y_pred_ann)^2)/n
+MSE.ann
+```
+
+## Regresión Lineal
+
+Creamos el regresor lineal con el conjunto de training 
+```{r}
+regressor_lm = lm(formula = Status ~ Nodes, 
+                  data = training_set_n)
+```
+
+Vemos que **Nodes** es la única variable significativa
+```{r}
+summary(regressor_lm)
+```
+
+Vamos a hacer las predicciones con nuestro regresor en el Conjunto de testing
+```{r}
+y_pred_lm = predict(regressor_lm, testing_set_n)
+```
+
+Calculamos el MSE para evaluar la eficacia del modelo lineal de predicción
+```{r}
+MSE_lm <- sum((actual - y_pred_lm)^2)/nrow(training_set)
+MSE_lm
+```
+
+## Regresión Multiple
+
+Creamos el regresor lineal multiple con el conjunto de training
+```{r}
+regressor_mm = lm(formula = Status ~ ., 
+                  data = training_set_n)
+```
+
+Observamos que la unica variable significativa es **Nodes**, por lo tanto el MSE no defira del de la regresión lineal simple
+```{r}
+summary(regressor_mm)
+```
+
+Vamos a hacer las predicciones con nuestro regresor en el Conjunto de testing
+```{r}
+y_pred_mm = predict(regressor_lm, testing_set_n)
+```
+
+Calculamos el MSE para evaluar la eficacia del modelo lineal multiple de predicción
+```{r}
+MSE_mm <- sum((actual - y_pred_mm)^2)/nrow(training_set)
+MSE_mm
+```
+
+## k-fold CROSS VALIDATION
+
+```{r}
+folds = createFolds(training_set$Status, k = 10)
+cv = lapply(folds, function(x) { 
+  training_fold = training_set_n[-x, ]
+  test_fold = training_set_n[x, ]
+  regressor_ann = neuralnet(Status ~ Age + Year + Nodes,
+                        training_fold, hidden = c(3,3),
+                        linear.output = T, threshold = 0.1)
+  y_pred2 = predict(regressor_ann, newdata = test_fold[,-4])
+  cm = table(test_fold[, 4], y_pred2)
+  accuracy = (cm[1,1]+cm[2,2])/(cm[1,1]+cm[1,2]+cm[2,1]+cm[2,2])
+  return(accuracy)  
+})
+```
+
+```{r}
+accuracy = mean(as.numeric(cv))
+accuracy_sd = sd(as.numeric(cv))
+```
+
+```{r}
+accuracy; accuracy_sd; MSE_lm; MSE_mm
+```
+
+Vemos que el mejor modelo es la red neuronal.
+
+## Segunda ANN
+
+Creamos el segundo regresor de la red neuronal entrenando con el conjunto de trainning. Usamos tres capas con 3 neuronas y un threshold del 0.01
+```{r}
+regressor_ann2 = neuralnet(Status ~ Age + Year + Nodes,
+                           training_set_n, hidden = c(3,3),
+                           linear.output = T, threshold = 0.01)
+```
+
+Representamos la Red Neuronal
+```{r}
+plot(regressor_ann2)
+```
+
+Vamos a hacer las predicciones con nuestro regresor en el Conjunto de testing
+```{r}
+y_pred_an2 = predict(regressor_ann2, testing_set_n[, -4])
+```
+
+Lo desnormalizamos para poder intrepetar el resultado
+```{r}
+y_pred_ann2 = y_pred_an2*
+  (max(data$Status)-min(data$Status))+min(data$Status)
+```
+
+```{r}
+cbind(actual,y_pred_ann2)
+actual2 = testing_set$Status
+```
+
+Calculamos el MSE para evaluar la eficacia del modelo de predicción
+```{r}
+n2 = nrow(testing_set)
+MSE.ann2 = sum((actual2 - y_pred_ann2)^2)/n2
+MSE.ann2
+```
+
+## Arbol de Decision
+
+Creamos el regresor para el Arbol de Decisión
+```{r}
+regressor_tree = rpart(formula = Status ~ .,
+                   data = training_set_n,
+                   control = rpart.control(minsplit = 1))
+```
+
+Vamos a hacer las predicciones con nuestro regresor en el Conjunto de testing
+```{r}
+y_pred_tree = predict(regressor_tree, testing_set_n[, -4])
+```
+
+Calculamos el MSE para evaluar la eficacia del modelo de predicción
+```{r}
+MSE_tree <- sum((actual2 - y_pred_tree)^2)/nrow(training_set)
+MSE_tree
+```
+
+## k-fold CROSS VALIDATION
+
+```{r}
+folds = createFolds(training_set$Status, k = 10)
+cv = lapply(folds, function(x) { 
+  training_fold = training_set_n[-x, ]
+  test_fold = training_set_n[x, ]
+  regressor_ann2 = neuralnet(Status ~ Age + Year + Nodes,
+                             training_fold, hidden = c(3,3),
+                             linear.output = T, threshold = 0.01)
+  y_pred2 = predict(regressor_ann2, newdata = test_fold[,-4])
+  cm = table(test_fold[, 4], y_pred2)
+  accuracy = (cm[1,1]+cm[2,2])/(cm[1,1]+cm[1,2]+cm[2,1]+cm[2,2])
+  return(accuracy)  
+})
+```
+
+```{r}
+accuracy2 = mean(as.numeric(cv))
+accuracy_sd2 = sd(as.numeric(cv))
+```
+
+```{r}
+accuracy2; accuracy_sd2 ; MSE_tree
+```
+
+## Tercer ANN
+
+Creamos el tercer regresor de la red neuronal entrenando con el conjunto de trainning. Usamos 4 capas, en las 2 primeras capas 3 neuronas y dos siguientes 2 y un threshold del 0.1
+```{r}
+regressor_ann3 = neuralnet(Status ~ Age + Year + Nodes,
+                            training_set_n, hidden = c(3,3,2,2),
+                            linear.output = T, threshold = 0.1)
+```
+
+Representamos la Red Neuronal
+```{r}
+plot(regressor_ann3)
+```
+
+Vamos a hacer las predicciones con nuestro regresor en el Conjunto de testing
+```{r}
+y_pred_an3 = predict(regressor_ann3, testing_set_n[, -4])
+```
+
+Lo desnormalizamos para poder intrepetar el resultado
+```{r}
+y_pred_ann3 = y_pred_an3*
+  (max(data$Status)-min(data$Status))+min(data$Status)
+```
+
+```{r}
+actual3 = testing_set$Status
+cbind(actual3,y_pred_ann3)
+```
+
+Calculamos el MSE para evaluar la eficacia del modelo de predicción
+```{r}
+n3 = nrow(testing_set)
+MSE.ann3 = sum((actual3 - y_pred_ann2)^2)/n3
+MSE.ann3
+```
+
+## SVM
+
+Creamos el regresor para el SVM
+```{r}
+regressor_svr = svm(formula = Status ~ ., 
+                 data = training_set_n, 
+                 type = "eps-regression", 
+                 kernel = "radial")
+```
+
+Vamos a hacer las predicciones con nuestro regresor en el Conjunto de testing
+```{r}
+y_pred_svr = predict(regressor_svr, testing_set_n[, -4])
+```
+
+Calculamos el MSE para evaluar la eficacia del modelo de predicción
+```{r}
+MSE_svr<- sum((actual - y_pred_svr)^2)/nrow(training_set)
+MSE_svr
+```
+
+Vamos a hacer las predicciones con nuestro regresor en el Conjunto de testing
+```{r}
+y_pred_svr = predict(regressor_svr, testing_set_n[, -4])
+```
+
+Calculamos el MSE para evaluar la eficacia del modelo de predicción
+```{r}
+MSE_svr<- sum((actual - y_pred_svr)^2)/nrow(training_set)
+MSE_svr
+```
+
+## k-fold CROSS VALIDATION
+
+```{r}
+folds = createFolds(training_set$Status, k = 10)
+cv = lapply(folds, function(x) { 
+  training_fold = training_set_n[-x, ]
+  test_fold = training_set_n[x, ]
+  regressor_ann3 = neuralnet(Status ~ Age + Year + Nodes,
+                            training_fold, hidden = c(3,3,2,2),
+                            linear.output = T, threshold = 0.1)
+  y_pred2 = predict(regressor_ann3, newdata = test_fold[,-4])
+  cm = table(test_fold[, 4], y_pred2)
+  accuracy = (cm[1,1]+cm[2,2])/(cm[1,1]+cm[1,2]+cm[2,1]+cm[2,2])
+  return(accuracy)  
+})
+```
+
+```{r}
+accuracy3 = mean(as.numeric(cv))
+accuracy_sd3 = sd(as.numeric(cv))
+```
+
+```{r}
+accuracy3; accuracy_sd3 ; MSE_svr
+```
+
+
+
+
+
+
+
+

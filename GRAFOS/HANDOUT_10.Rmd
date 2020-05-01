@@ -1,0 +1,143 @@
+---
+title: "HANDOUT_10"
+author: "LUIS SASTRE SAN EMETERIO"
+date: "12/20/2019"
+output: html_document
+---
+```{r setup, include=FALSE}
+library(igraph)
+library(tidyverse)
+library(network)
+library(printr)
+library(Matrix)
+library(modeest)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Cargamos el dataframe
+```{r}
+data <- read.table("facebook_sample_anon.txt", quote = "\"", comment.char = "")
+face <- graph_from_data_frame(d = data, directed = F)
+```
+
+#1)
+
+##a)
+```{r}
+is_connected(face) 
+components(face)$no
+components(face)$csize
+groups(components(face))
+```
+Vemos que estan conectados todos
+
+##b)
+```{r}
+gorder(face)
+gsize(face)
+edge_density(face, loops = FALSE)
+```
+Los resultados de el Orden y el Tamaño son consistentes. Tiene 4039 vertices  y
+el doble de conexiones 88234. Por su parte observamos que la densidad del grafo es muy baja, lo que indica que las conexiones reales que hay en el grafo son mucho mas pequeñas que el numero de posibles conexiones que podria haber.
+
+##c)
+```{r}
+deg <- degree(face)
+mean(deg) 
+median(deg) 
+mfv(deg) 
+range(deg) 
+```
+ Primero vemos el grado del grafo y despues con la media calculamos el promedio de grados en el grafo. Con la mediana calculamos su valor central y la moda nos devuelve el valor mas repetido.
+El rango es el numero de ceros que que hay en la matriz.
+
+##d)
+```{r}
+deg_distribution <- round(degree.distribution(face),4)
+deg_distribution
+```
+Representacion Lineal
+```{r}
+TrDD = c(1-degree_distribution(face)[-1],1)
+plot(0:max(degree(face)), TrDD,pch=20,main="Degree distribution",xlab="Degree",ylab="Probability",type="o")
+```
+
+Representacion Logaritmica
+```{r}
+TrDD1=degree_distribution(face) 
+plot(TrDD1,pch=20,cex=0.7,xlab="Degree",ylab="Frequencies",main=" LOG-LOG Degree distribution",log="xy")
+```
+
+En escala Logaritmica se aprecia mas la probabilidad de los grados.
+
+##e)
+```{r}
+D=degree_distribution(face) 
+xx=which(D>0)[-(1:10)]  # remove the first 10 prob values
+lyy=log(D[xx])
+lxx=log(xx)
+LMI=lm(lyy~lxx)$coefficients  # line coefficients
+plot(D,pch=20,cex=0.7,xlab="Degree",ylab="Frequencies",main="degrees",log="xy")
+points(exp(lxx),exp(LMI[1]+LMI[2]*lxx),col="red",type="l",lwd=2)
+```
+
+##f)
+
+D=degree_distribution(GRAPH)
+Se crea la distribucion del grados nombrando la poeracion con la variable "D"
+xx=which(D>0)[-(1:10)] 
+Aqui selecciona los valores mayores de 10
+lyy=log(D[xx])
+Aplica el logaritmo
+lxx=log(xx)
+Aplica el logaritmo
+LMI=lm(lyy~lxx)$coefficients 
+Aqui hace la regresion lineal
+plot(D,pch=20,cex=0.7,xlab="Degree",ylab="Frequencies",main="degrees",log="xy")
+Representa la distribucion de grado en forma logaritmica, con los grados en als X y las frecuencias en la Y
+points(exp(lxx),exp(LMI[1]+LMI[2]*lxx),col="red",type="l",lwd=2)
+Representa la linea de regresion sobre el plot
+
+##g)
+```{r}
+fit_power_law(D)
+```
+
+#2)
+```{r}
+g <- sample_smallworld(1, 1000, 5,  0.5)
+mean_distance(g)
+distances(g)
+```
+Vemos que la mayor distancia es 4
+
+#3)
+```{r}
+face1 <- sample_pa (4039, out.seq = degree (face, mode = "out"))
+v <- degree_distribution(face1)
+plot(v,pch=20,cex=0.7,xlab="Degree",ylab="Frequencies",main=" LOG-LOG Degree distribution",log="xy")
+fit_power_law(v)
+```
+
+#4)
+
+Continua pudiendose seguir con una regla de umbral, pero no la que hasta ahora. Antes teniamos que si optaban por no coordinarse y elegir comportamientos diferentes entre vecinos se les castigaba con pagos de cero. Ahora el comportarse diferente a tu vecino tiene recompensa x, entonces depende del numero de nodos que sigan este comportamiento, puede ocasinar un efecto cascada para que todos 
+eligan ese pago (x).
+
+#5)
+
+##a)
+
+No es posible crear una clasificacion adicianal para lograr que "A" consiga estar primero en la clasificacion de grupo. Esto es debido a que si sumamos los valores de las posiciones de las letras solo teniendo en cuenta las dos primeras clasificaciones (1 y 2), nos sale que "D" recibe 6 puntos y el resto 2 ("D" iria primero). Para lograr que "A" fuera primero incluyendo otra clasificacion, deberia lograr que superara los 6 puntos y no es posible, como mucho conseguiria 5 puntos si pusiera  "A" como primera opcion em mi clasificacion.
+
+##b)
+
+En este caso si que es posible, solo teniendo en cuenta las dos clasificaciones
+que da el ejercicio ahora "D" tendria valor 5, "A" Y "B" valor 3 y "C" valor 1.
+Entonces, en este caso, podria añadir una clasificacion individual adicional donde "A" fuera primero, "C" segundo, "B" tercero y "D" ultimo. Asi conseguiriamos que el la clasificacion general "A" fuera primero con 6 puntos, luego "D", "B" y "C".
+
+
+
+
+
+

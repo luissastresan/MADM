@@ -1,0 +1,293 @@
+---
+title: "Practica 1. Técnicas Estadísticas con Información Imprecisa"
+output: html_document
+---
+
+**Nombres de los alumnos**
+
+* Nombre del tercer alumno: Sastre San Emerito, Luis
+
+El fichero ``gasto_viajes.txt'', que podréis encontrar en Aula Digital, contiene información sobre la encuesta de turismo a residentes del tercer trimestre del 2019. Los datos están separados por espacios en blanco y la primera fila contiene los nombres de las variables. Las variables de las que se dispone son las siguientes:
+
+* *Comunidad*: Nombre de la comunidad autónoma.
+* *Viajes*: Número de viajes realizados a la comunidad.
+* *Pernoctaciones*: Número de noches pasadas en la comunidad.
+* *Gasto_total*: Gasto total en millones de euros.
+
+Ejercicio 1 - 1 punto
+-------------------------------------
+Descargad el fichero y definid un dataframe. Comprobad con *str* y *head* que se ha descargado correctamente y comprobad los nombres de las variables.
+
+Solución
+-------------------------------------
+
+```{r}
+Df<-read.table("gasto_viajes.txt", header=TRUE)
+str(Df)
+head(Df)
+```
+
+Ejercicio 2 - 2 puntos
+-------------------------------------
+Cargad el paquete *FuzzyNumbers*, fuzzificad los datos correspondientes a la variable *Gasto_total* explicando el método de fuzzyficacion usado. Encontrad el mínimo y el máximo de estos números borrosos. 
+
+Solución
+-------------------------------------
+
+Para la *fuzzificacion* de la variable **Gasto Total**, se ha elegido que los números sean triangulares porque al tratarse de observaciones identificadas con un número concreto, podemos representar dicho número como el vertice de nuestro triangulo y marcar un rango de error para conseguir mas precisión. 
+
+Al haberse extraído los datos de un cuestionario rellenado por los propios ciudadanos, se considera una posibilidad de sesgo del **2.5%**, tenidendo en cuenta así las potenciales respuestas imprecisas (tanto por exceso como por defecto) pero sin suponer que podría predominar más una desviación hacía uno de los dos lados.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(FuzzyNumbers)
+library(tidyverse)
+
+GastoFuzzy <- vector("list", length(Df$Gasto_total))
+for(i in seq_along(Df$Gasto_total)){
+  GastoFuzzy[[i]] <- TriangularFuzzyNumber(0.975*Df[i,4],Df[i,4],1.025*Df[i,4])
+}  
+
+Max<-maximum(as.PiecewiseLinearFuzzyNumber(GastoFuzzy[[1]]),as.PiecewiseLinearFuzzyNumber(GastoFuzzy[[2]]))
+
+for(i in 2:length(Df$Comunidad)){
+  Max <- 
+    maximum(as.PiecewiseLinearFuzzyNumber(Max),as.PiecewiseLinearFuzzyNumber(GastoFuzzy[[i]]))
+}  
+
+
+
+Min<-minimum(as.PiecewiseLinearFuzzyNumber(GastoFuzzy[[1]]),as.PiecewiseLinearFuzzyNumber(GastoFuzzy[[2]]))
+
+for(i in 2:length(Df$Comunidad)){
+  Min <- 
+    minimum(as.PiecewiseLinearFuzzyNumber(Max),as.PiecewiseLinearFuzzyNumber(GastoFuzzy[[i]]))
+}  
+
+
+
+
+```
+
+
+Una vez realizado los cálculos, se encuentra que el **máximo** es:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Max
+```
+
+Y el **Mínimo**:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Min
+```
+
+
+Ejercicio 3 - 3 puntos
+-------------------------------------
+Calculad un número borroso que represente por cada comunidad autónoma, el gasto (en euros) medio por persona. ¿Qué comunidades tienen un mayor y menor gasto medio borroso?  Realizad lo mismo pero ahora considerando el gasto (en euros) medio diario. Comparad el resultado con el caso clásico.
+
+Solución
+-------------------------------------
+
+Las tres comunidades que **mayor** gasto medio borroso por persona tienen son **Melilla**, **Cataluña** y **Madrid**.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+data1 = Df$Viajes
+gasto_medio_persona = list()
+for(i in 1:nrow(Df)) {
+gasto_medio_persona[[i]] = (GastoFuzzy[[i]]*(1/data1[[i]]))*10^6}
+
+
+Melilla<-gasto_medio_persona[[19]]
+Catalunya<-gasto_medio_persona[[9]]
+Madrid<-gasto_medio_persona[[13]]
+print("1. Melilla")
+Melilla
+print("2. Cataluña")
+Catalunya
+print("3. Madrid")
+Madrid
+```
+
+
+Las comunidades que **menor** gasto medio borroso por persona tienen son **Galicia**, **Andalucía** y **Murcia**.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+print("17. Murcia")
+gasto_medio_persona[[14]]
+print("18. Andalucia")
+gasto_medio_persona[[1]]
+print("19. Galicia")
+gasto_medio_persona[[12]]
+```
+
+Por otra parte, las tres comunidades que mayor gasto medio borroso diario tienen son **Canarias**, **Illes Balears** y **La Rioja**.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+data2 = Df$Pernoctaciones
+gasto_medio_diario = list()
+for(i in 1:nrow(Df)) {
+  gasto_medio_diario[[i]] = (GastoFuzzy[[i]]*(1/data2[[i]]))*10^6}
+
+print("1. Canarias")
+gasto_medio_diario[[5]]
+print("2. Illes Balears")
+gasto_medio_diario[[4]]
+print("3. La Rioja")
+gasto_medio_diario[[17]]
+
+```
+
+Las tres comunidades que **menor** gasto medio borroso diario tienen son **Murcia**, **País Vasco** y **Melilla**.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+print("17. Melilla")
+gasto_medio_diario[[19]]
+print("18. Pais Vasco")
+gasto_medio_diario[[16]]
+print("19. Murcia")
+gasto_medio_diario[[14]]
+```
+
+Con el **método clásico**:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+T1<- Df %>%
+  mutate(gasto_medio_persona = (Gasto_total/Viajes)*10^6) %>%
+  arrange(desc(gasto_medio_persona)) %>%
+  select("Comunidad",gasto_medio_persona) 
+
+
+T2<-Df %>%
+  mutate(gasto_medio_diario = (Gasto_total/Pernoctaciones)*10^6) %>%
+  arrange(desc(gasto_medio_diario)) %>%
+  select("Comunidad",gasto_medio_diario) 
+
+```
+
+Si utilizamos el metodo clásico veremos que las comunidades que **más gasto medio por persona** tienen en este caso son **Melilla**, **Cataluña** y **Madrid**. 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+T1 %>%
+  head(3)
+```
+
+Las comunidades que **menos gasto medio por persona** tienen son **Galicia**, **Andalucía** y **Murcia**. Coincidiendo así con los resultados utilizando los datos "fuzzificados".
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+T1 %>%
+  tail(3)
+```
+
+Por otro lado, las comunidades que **más gasto medio diario** tienen son **Canarias**, **Islas Baleares** y **La Rioja**. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+T2 %>% head(3)
+
+```
+
+Las comunidades que **menos gasto medio por persona** tienen son **Murcia**, **País Vasco** y **Melilla**. Coincidiendo también con los resultados utilizando los datos "fuzzificados".
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+T2 %>%
+  tail(3)
+```
+
+
+Ejercicio 4 - 2 puntos
+-------------------------------------
+Definid una variable de tipo factor en la que se asigne a "Interior" o "Costa" a cada comunidad autónoma en función de si dispone de mar o no. Calculad los gastos (en euros) medios diarios de un turista de interior y de uno de costa. ¿Qué tipo de turista gasta mas diariamente? Comparad el resultado con el caso clásico.
+
+Solución
+-------------------------------------
+Con el método clasico, podemos comprobar que gastan más las personas de **interior** que las de **costa**.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Mar<-factor(c("Costa", "Interior", "Costa", "Costa", "Costa", "Costa", "Interior", "Interior","Costa", "Costa",  "Interior", "Costa",  "Interior", "Costa",  "Interior", "Costa", "Interior", "Costa", "Costa"), levels = c("Costa", "Interior"))
+Df<-Df%>%mutate(Mar=Mar)
+
+
+
+GastoMar<-Df%>%
+  group_by(Mar)%>%
+  mutate(Gasto_persona=Gasto_total*10^6*(1/Viajes))%>%
+  summarise(meanCosta=weighted.mean(Gasto_persona, Viajes))
+
+GastoMar
+
+```
+
+Si utilizamos los datos "fuzzificados", podemos observar que **no hay diferencias con respecto al método clasico** y, por lo tanto, también son los de interior los que gastan más en sus viajes. A continuación se muestra primeramente el gasto "fuzzifcado" de los ciudadanos de comunidades de costa primeramente, y de interior después.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Gasto_Persona_Fuzzy <- vector("list", length(GastoMar))
+for(i in seq_along(GastoMar)){
+  Gasto_Persona_Fuzzy[[i]] <- TriangularFuzzyNumber(0.975*GastoMar[i,2][[1]],GastoMar[i,2][[1]],1.025*GastoMar[i,2][[1]])
+}  
+
+Gasto_Persona_Fuzzy
+```
+
+Ejercicio 5 - 2 puntos
+-------------------------------------
+Fuzzificad ahora también el número de viajes de cada comunidad explicando la metodología considerada. Calculad el gasto (en euros) medio por persona en cada comunidad. ¿Han cambiado los resultados en comparación con el Ejercicio 3? Calculad también el gasto (en euros) medio por persona de forma global en toda España. 
+
+Solución
+-------------------------------------
+Para fuzzificar el número de viajes también hemos considerado una desviación de un 2,5% tanto a la alza como a la baja. Este intervalo se ha escogido dado que se interpreta que los datos recogidos pueden no ser exactos.
+
+A continuación, calculamos el **gasto medio por persona en cada comunidad**:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+FuzzyViajes <- vector("list", length(Df$Viajes))
+for(i in seq_along(Df$Viajes)){
+  FuzzyViajes[[i]] <- TriangularFuzzyNumber(0.975*Df[i,2],Df[i,2],1.025*Df[i,2])
+}
+
+FuzzyViajesMul <- vector("list", length(FuzzyViajes))
+
+for(i in seq_along(FuzzyViajes)){
+  FuzzyViajesMul[[i]] <- 
+PiecewiseLinearFuzzyNumber(alphacut(FuzzyViajes[[i]], seq(0,1,0.1))[1,1],alphacut(FuzzyViajes[[i]], seq(0,1,0.1))[11,1],alphacut(FuzzyViajes[[i]], seq(0,1,0.1))[11,2],alphacut(FuzzyViajes[[i]], seq(0,1,0.1))[1,2])
+}
+
+
+GastoFuzzyMul <- vector("list", length(GastoFuzzy))
+for(i in seq_along(GastoFuzzy)){
+  GastoFuzzyMul[[i]] <- 
+PiecewiseLinearFuzzyNumber(alphacut(GastoFuzzy[[i]], seq(0,1,0.1))[1,1],alphacut(GastoFuzzy[[i]], seq(0,1,0.1))[11,1],alphacut(GastoFuzzy[[i]], seq(0,1,0.1))[11,2],alphacut(GastoFuzzy[[i]], seq(0,1,0.1))[1,2])
+}
+
+gasto_medio_persona_fuzzy = list()
+
+for(i in seq_along(GastoFuzzy)) {
+  gasto_medio_persona_fuzzy[[i]] = (GastoFuzzyMul[[i]]/(FuzzyViajesMul[[i]]))*10^6
+  }
+gasto_medio_persona_fuzzy
+
+```
+
+Si en lugar de realizarlo por comunidades, se considerara el global de **España**, entonces:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+gasto_medio_persona_fuzzy_Esp<-vector("list", 1)
+rm(gasto_medio_persona_fuzzy_Esp)
+gasto_medio_persona_fuzzy_Esp_NoPon<-gasto_medio_persona_fuzzy[[1]]
+
+for(i in 2:19){
+  gasto_medio_persona_fuzzy_Esp_NoPon <- gasto_medio_persona_fuzzy_Esp_NoPon + gasto_medio_persona_fuzzy[[i]]
+
+}
+#Sense ponderar
+#gasto_medio_persona_fuzzy_Esp_NoPon/19
+
+#Ponderat
+gasto_medio_persona_fuzzy_Esp_Pon<-gasto_medio_persona_fuzzy[[1]]*Df$Viajes[[1]]/sum(Df$Viajes)
+
+for(i in 2:19){
+  gasto_medio_persona_fuzzy_Esp_Pon <- gasto_medio_persona_fuzzy_Esp_Pon + gasto_medio_persona_fuzzy[[i]]*Df$Viajes[[i]]/sum(Df$Viajes)
+
+}
+gasto_medio_persona_fuzzy_Esp_Pon
+```

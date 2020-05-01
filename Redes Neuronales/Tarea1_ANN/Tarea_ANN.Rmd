@@ -1,0 +1,215 @@
+---
+title: "ANN (ARTIFICIAL NEURAL NETWORK)"
+author: "LUIS SASTRE SAN EMETERIO"
+date: "4/2/2020"
+output: html_document
+---
+
+```{r setup, message=FALSE}
+library(caTools)
+library(h2o)
+library(tidyverse)
+library(ROCR)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Para realizar el trabajo me he apoyado en los scrips de clase, asi como en un tutorial de Udemy sobre redes neuronales. https://www.udemy.com/course/machinelearning-es
+
+1)
+
+Las redes neurales intentan replicar las neuronas del cerebro. Una neurona de cualquier animal esta formada por las dendritas, que serían las encargadas mediante impulsos electricos de interpretar la informacion. El cuerpo de la neurona, donde se produce el analisis de la información y el axon, por donde se transporta a otras neuronas de la red.
+
+En terminos informaticos, las ANN modelizan este sistema. Dicho sistema esta formado por la capa de entrada o inputs, las capas ocultas, que pueden ser una o varias capas y con una o muchas neuronas. Y finalmente la capa de salida o output, que es la predicción.
+
+El funcionamiento es sorprendente, si suponemos por ejemplo que tenemos 3 inputs (x, y, z), en la primera iteración cada neurona de la capa o capas ocultas otorgara unos pesos a cada input (de 0 a 1) otorgandole una importancia para la predicción. De este modo, y simplificandolo mucho, cada neurona se especializara en conocer un tipo de input y asi poder hacer una predicción que será el output.
+
+Como aprenden, mediante la propagación hacia atrás. Es decir, en cada iteración cada neurona otorgara un peso a los inputs y estos al final daran una predicción. Esta estimación se testerara con el valor real para dar una función de costes. Después de esto, se volvera hacia atras para ajustar los pesos que cada neurona da, y se volvera a generar una estimacion y una función de costes. Asi hasta que se consigan los pesos óptimos los cuales minimizan la función de costes.
+
+
+2)
+
+Cargo el Dataframe:
+```{r}
+data = read.csv('sonar.all-data.csv')
+```
+
+Miro los primeras cinco filas:
+```{r}
+head(data)
+```
+
+
+El nombre de cada columna:
+```{r}
+colnames(data)
+```
+
+Miro de que tipo es cada variable:
+```{r}
+str(data)
+```
+
+Busco cuantos 0 y 1  hay en la variable R:
+```{r}
+table(data$R)
+```
+
+Lo grafico para verlo mejor:
+```{r}
+data %>%
+  group_by(R) %>%
+  summarise(
+    count = n()
+  ) %>%
+  ggplot(aes(R, count, fill = R)) +
+  geom_bar(stat = "identity")
+```
+
+Convertimos la variable R en numerico, para poder trabajar con el algoritmo:
+```{r}
+data$R = ifelse(data$R == "R", 0, 1)
+```
+
+Dividimos en Conjunto de train y Conjunto de test con 75% y 25% respectivamente:
+```{r}
+set.seed(333)
+split = sample.split(data$R, SplitRatio = 0.75)
+training_set = subset(data, split == TRUE)
+testing_set = subset(data, split == FALSE)
+```
+
+Escalamos las variables independientes, la dependiente al ser ceros y unos no hace falta:
+```{r}
+training_set[, -61] = scale(training_set[, -61])
+testing_set[, -61] = scale(testing_set[, -61])
+```
+
+Voy a usar un paquete distinto al empleado en clase, se llama **h2o**.
+Llamamos a la función h2o:
+```{r}
+h2o.init(nthreads = -1)
+```
+
+Creamos el classificador, indicandole la variable a clasificar, el conjunto de trainning, la funcion de activación, el numeros de capas junto al número de neuronas en cada una de ellas, el número de iteraciones que tiene que hacer para maxximizar los pesos y con un aprendizaje automatico.
+```{r message= FALSE}
+classifier = h2o.deeplearning(y = "R", # variable dependiente, la que quiero clasificar
+                              training_frame = as.h2o(training_set),
+                              activation = "Rectifier", # función de activacion
+                              hidden = c(30, 30, 30), # 3 capas ocultas de 30 neuronas cada una
+                              epochs = 50, # 200 iteraciones para ajustar los pesos
+                              train_samples_per_iteration = -2,
+                              adaptive_rate = TRUE) # Significa que el aprendizaje se adapta automaticamente. Por defecto ADADELTA
+```
+
+Creo el predictor que clasifique el conjunto de testing con el classificador que he entrenado antes:
+```{r message=FALSE}
+prob_pred = h2o.predict(classifier, 
+                        newdata = as.h2o(testing_set[, -61]))
+y_pred = (prob_pred > 0.8)
+y_pred = as.vector(y_pred)
+```
+
+Creo la matriz de confusión para ver los resutados de la clasificación:
+```{r}
+cm = table(testing_set[, 61], y_pred)
+```
+
+Obtenemos que ha clasificado bien 23 ceros como ceros y 17 unos como unos. H a clasificado mal un cero como un 1, y 11 unos como ceros. Es decir, ha logrado un 76.92% de acierto en la clasificación.
+```{r}
+cm
+```
+
+Ahora represenetamos esa clasificación:
+```{r}
+pred <- prediction(as.numeric(y_pred), as.numeric(testing_set[, 61]))
+perf <- performance(pred, "tpr", "fpr")
+```
+
+```{r}
+plot(perf)
+```
+
+Creo otro clasificador, esta vez con una funcion de activación diferente, com menos capas pero con más neuronas en ellas, 100 iteraciones y un aprendizaje autimatico.
+```{r message=FALSE}
+classifier1 = h2o.deeplearning(y = "R",
+                               training_frame = as.h2o(training_set),
+                               activation = "Tanh",
+                               hidden = c(500, 500),
+                               epochs = 100,
+                               train_samples_per_iteration = -2,
+                               adaptive_rate = TRUE) 
+```
+
+
+```{r message=FALSE}
+prob_pred1 = h2o.predict(classifier1, 
+                        newdata = as.h2o(testing_set[, -61]))
+y_pred1 = (prob_pred1 > 0.8)
+y_pred1 = as.vector(y_pred1)
+```
+
+```{r}
+cm1 = table(testing_set[, 61], y_pred1)
+```
+
+El resultado ahora es un poco mejor, obtenemos que acierta en su calsificación en un 80.76%
+```{r}
+cm1
+```
+
+```{r}
+pred1 <- prediction(as.numeric(y_pred1), as.numeric(testing_set[, 61]))
+perf1 <- performance(pred1, "tpr", "fpr")
+```
+
+```{r}
+plot(perf1)
+```
+
+Y por último, genero otro calsificador con 3 capas de 500 neuronas cada una, 500 iteraciones y ne este caso le programo yo lo rapido que quiero que aprenda.
+```{r message=FALSE}
+classifier2 = h2o.deeplearning(y = "R",
+                               training_frame = as.h2o(training_set),
+                               activation = "Rectifier",
+                               hidden = c(500, 500, 500),
+                               epochs = 500,
+                               train_samples_per_iteration = -2,
+                               adaptive_rate = FALSE,
+                               rate = 0.00001, # Lo rápido que aprende por iteración
+                               nesterov_accelerated_gradient = TRUE) 
+```
+
+```{r message=FALSE}
+prob_pred2 = h2o.predict(classifier2, 
+                         newdata = as.h2o(testing_set[, -61]))
+y_pred2 = (prob_pred2 > 0.8)
+y_pred2 = as.vector(y_pred2)
+```
+
+```{r}
+cm2 = table(testing_set[, 61], y_pred2)
+```
+
+El resultado es prácticamente identico al anterior. Posiblemente nos encontremos que este sesgado.
+```{r}
+cm2
+```
+
+```{r}
+pred2 <- prediction(as.numeric(y_pred2), as.numeric(testing_set[, 61]))
+perf2 <- performance(pred2, "tpr", "fpr")
+```
+
+```{r}
+plot(perf2)
+```
+
+Cerramos la libreria.
+```{r}
+h2o.shutdown()
+```
+
+Como conclusión pordemos decir que las redes neuronales han tenido una buena clasificacion, con un porcentaje de acierto muy alto. El problema es que la muestra de observaciones es muy pequeña, por lo que es posible que hallamos podido tener cierto sesgo, dependiendo del numero de capas utilizadas o de neuronas. Provocando un sobre aprendizaje.
+
+
+

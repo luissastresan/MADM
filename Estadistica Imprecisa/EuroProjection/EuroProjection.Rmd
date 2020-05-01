@@ -1,0 +1,351 @@
+---
+title: "Práctica 2. Técnicas Estadísticas con Información Imprecisa"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+**Nombres de los alumnos**
+
+* Nombre del tercer alumno: Sastre San Emerito, Luis
+
+El fichero ``euro_projection.txt'', que podréis encontrar en Aula Digital, contiene información sobre las proyecciones de población de 31 países europeos para las décadas de 2020 a 2100, a partir de los datos del año 2018. Los datos estan separados por espacios en blanco y la primera fila contiene los nombres de las variables. Las variables de las que se dispone son las siguientes:
+
+* *Country*: Nombre del país.
+* *2018*, *2020*, *2030*, *2040*, *2050*, *2060*, *2070*, *2080*, *2090*, *2100*, cada una dada como el valor de población.
+
+Ejercicio 1 - 1 punto
+-------------------------------------
+Descargad el fichero y definid un dataframe. Comprobad con *str* y *head* que se ha descargado correctamente y comprobad los nombres de las variables. 
+
+Solución
+-------------------------------------
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(FuzzyNumbers)
+library(tidyverse)
+```
+
+```{r}
+Df<-read_csv("euro_projection.txt")
+str(Df)
+head(Df)
+```
+
+Ejercicio 2 - 2 puntos
+-------------------------------------
+Cargad el paquete *FuzzyNumbers*, fuzzyficad los datos correspondientes de todas las variables *2018*, *2020*,...,*2100*, explicando el método de fuzzyficación usado. Calculad la resta borrosa de las variables fuzzyficadas de *2100* menos *2018*, que llamaremos *Evolución*. Encontrad el mínimo y el máximo de los datos de esta variable. Dibujad en un mismo gráfico los números borrosos correspondientes a *Evolución* de los 5 países con mayor valor de dicha variable crisp. 
+
+Solución
+-------------------------------------
+Para la *fuzzificacion* de las variables, se ha elegido que los números sean triangulares porque al tratarse de observaciones identificadas con un número concreto, podemos representar dicho número como el vertice de nuestro triangulo y marcar un rango de error para conseguir más precisión. 
+
+La forma de obtener los datos ha sido con una proyeccion determinista basado en supuesto formulados sobre los años futuros.Por lo tanto, se considera una posibilidad de sesgo del **2.5%**, tenidendo en cuenta así las potenciales respuestas imprecisas (tanto por exceso como por defecto) pero sin suponer que podría predominar más una desviación hacía uno de los dos lados.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+lista_pais<-list(rep(0, dim(Df)[1]))
+lista_anos<-list(rep(0, dim(Df)[2]-1))
+
+
+for(j in 2:11){
+  for(i in 1:31){
+    lista_pais[i] <- TriangularFuzzyNumber(0.975*Df[i,j][[1]],Df[i,j][[1]],1.025*Df[i,j][[1]])
+      lista_anos[[j]]<-lista_pais
+      
+  }
+  j<-j+1
+}
+```
+
+Creamos la variable **Evolución** como la resta de la variable **x_2100** menos **x_2018**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Resta
+Evolucion<-vector("list", 31)
+
+for(i in 1:31){
+  Evolucion[[i]]<-lista_anos[[11]][[i]]+(-1)*lista_anos[[2]][[i]]
+
+}
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Evolucion
+```
+
+Obtenemos el **máximo** y el **mínimo** de la variable **Evolución**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Maximo
+Max<-maximum(as.PiecewiseLinearFuzzyNumber(Evolucion[[1]]),as.PiecewiseLinearFuzzyNumber(Evolucion[[2]]))
+
+for(i in 2:dim(Df)[1]){
+  Max <- 
+    maximum(as.PiecewiseLinearFuzzyNumber(Max),as.PiecewiseLinearFuzzyNumber(Evolucion[[i]]))
+}  
+```
+
+El **Máximo** es:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Max
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Min<-minimum(as.PiecewiseLinearFuzzyNumber(Evolucion[[1]]),as.PiecewiseLinearFuzzyNumber(Evolucion[[2]]))
+
+for(i in 2:dim(Df)[1]){
+  Min <- 
+    minimum(as.PiecewiseLinearFuzzyNumber(Max),as.PiecewiseLinearFuzzyNumber(Evolucion[[i]]))
+}  
+```
+
+El **Mínimo** es:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Min
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Df<-Df%>%
+  mutate(Evolucion=Df$`2100`-Df$`2018`)
+
+MaxEvol<-c()
+
+for(i in 1:5){
+  MaxEvol[i]<-which(Df$Evolucion==sort(Df$Evolucion, decreasing = T)[i])
+}
+```
+
+El Gráfico de los números borrosos correspondientes a *Evolución* de los 5 países con mayor valor de dicha variable crisp son:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#grafico
+for(i in 1:5){
+plot(Evolucion[MaxEvol][[i]], main= Df[which(Df$Evolucion==sort(Df$Evolucion, decreasing = T)[i]),1])
+}
+```
+
+Ejercicio 3 - 2 puntos
+-------------------------------------
+Calculad un número borroso que represente para cada año, la suma de los valores fuzzyficados de los 31 países. ¿En qué década se puede decir que la población de Europea empezará a decrecer, en su conjunto, según estas proyecciones? Compara el resultado con el caso crisp.
+
+Solución
+-------------------------------------
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sumpais<-vector("list", 31)
+sumpais<-vector("list", 11)
+
+for (j in 2:11){
+  for(i in 1:31){
+    if(i < 2)
+    {suma<-lista_anos[[j]][[1]]}
+    else {suma<-suma+lista_anos[[j]][[i]]}
+    sumpais[[j]]<-suma
+    
+  }
+  j<-j+1
+}
+```
+
+La suma de los valores Fuzzificados de los 31 países es:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sumpais
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Max<-maximum(as.PiecewiseLinearFuzzyNumber(sumpais[[2]]),as.PiecewiseLinearFuzzyNumber(sumpais[[3]]))
+
+for(i in 3:dim(Df)[2]-1){
+  Max <- 
+    maximum(as.PiecewiseLinearFuzzyNumber(Max),as.PiecewiseLinearFuzzyNumber(sumpais[[i]]))
+} 
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+rownames(as.matrix(which((apply(Df[,2:11],2, FUN=sum)==core(Max)[[1]])==TRUE)))
+```
+La población Europea comenzará a decrecer en la década comprendida entre 2040 y 2050.
+
+
+Ejercicio 4 - 3 puntos
+-------------------------------------
+Calculad la mediana borrosa de la variable *Evolución*. ¿Qué paises europeos se encuentran a una menor distancia (utilizando la función *distance* del paquete *FuzzyNumbers*) de esta mediana? Operando con valores crisp, ¿cuáles serían estos paises?
+
+Solución
+-------------------------------------
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+X = seq(min(Df$Evolucion)*1.5,max(Df$Evolucion)*1.5,100000)
+deltas = seq(0,1,0.1)
+FL = matrix(nrow = length(deltas), ncol = length(X), dimnames = list(deltas,seq(min(Df$Evolucion)*1.5,max(Df$Evolucion)*1.5,100000)))
+FU = matrix(nrow = length(deltas), ncol = length(X), dimnames = list(deltas,seq(min(Df$Evolucion)*1.5,max(Df$Evolucion)*1.5,100000)))
+
+for(j in 1:length(deltas)){
+  acut = list()
+  for (i in 1:length(Evolucion)) {
+    acut[[i]] = alphacut(Evolucion[[i]], deltas[j])
+    }
+  for (z in 1:length(X)) {
+    intersec = 0
+    contin = 0
+    for (i in 1:length(Evolucion)) {
+      if (acut[[i]][1] < X[z]) {
+        intersec = intersec + 1
+      }
+      
+      if (acut[[i]][2] < X[z]) {
+        contin = contin + 1
+      }
+    }
+    FU[j,z] = contin/length(Evolucion)
+    FL[j,z] = intersec/length(Evolucion)
+  }
+}
+
+p = 0.5
+EvolucionMed = matrix(nrow = length(deltas), ncol = 2, dimnames = list(deltas,c("L","U")))
+
+for (i in 1:length(deltas)){
+  for (j in 1:length(X)){
+    if (FL[i,j]>=p){
+      EvolucionMed[i,"L"] = X[j]
+      break
+    }
+  }
+}
+for (i in 1:length(deltas)){
+  for (j in 1:length(X)){
+    if (FU[i,j]>= p){
+      EvolucionMed[i,"U"] = X[j]
+      break
+    }
+  }
+}
+```
+
+La mediana borrosa de la variable **Evolución** es:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+EvolucionMed
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Mediana <- TrapezoidalFuzzyNumber(EvolucionMed[1,"L"],
+                    EvolucionMed[10,"L"],
+                    EvolucionMed[10,"U"],
+                    EvolucionMed[1,"U"])
+
+Distancia<-matrix(nrow = dim(Df)[1], ncol = 2)
+
+
+for(i in seq(dim(Df)[1])){
+  Distancia[i,1]<-distance(Mediana, Evolucion[[i]])
+  Distancia[i,2]<-Df$Country[i]
+}
+Distancia<-as.data.frame(Distancia)
+colnames(Distancia)<-c("Distancia", "Pais")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Distancia%>%
+  arrange(Distancia)%>%head(3)
+```
+Los países que se encuentran a una menor distancia de la mediana son: **Luxembourg**, **Lithuania** y
+**Poland**.
+
+Con los valores Crisp tenemos:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+MedianaCrisp<-quantile(Df$Evolucion,0.5)
+
+DistanciaCrisp<-matrix(nrow = dim(Df)[1], ncol = 2)
+
+for(i in seq(dim(Df)[1])){
+  DistanciaCrisp[i,1]<-dist(x=rbind(MedianaCrisp, Df$Evolucion[[i]]),method = "euclidean")
+  DistanciaCrisp[i,2]<-Df$Country[i]
+}
+DistanciaCrisp<-as.data.frame(DistanciaCrisp)
+colnames(DistanciaCrisp)<-c("Distancia", "Pais")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+DistanciaCrisp%>%
+  arrange(Distancia)%>%head(3)
+```
+En esta caso, con las variables crisp, los países que se encuentran a una menor distancia de la mediana son: **Estonia**, **Poland** y **Denmark**.
+
+Ejercicio 5 - 2 puntos
+-------------------------------------
+Para la variable *Evolución*, calcula cuál sería la frecuencia borrosa de la clase [0, 500 000], represéntala e interprétala.
+
+Solución
+-------------------------------------
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+deltas = seq(0,1,0.001)
+FL = matrix(nrow = length(deltas), ncol = 1, dimnames = list(deltas,"Frequencia"))
+FU = matrix(nrow = length(deltas), ncol = 1, dimnames = list(deltas,"Frequencia"))
+
+acut = list()
+acuts=vector("list", length(deltas))
+for(j in 1:length(deltas)){
+    for (i in 1:length(Evolucion)) {
+    acut[[i]] <- alphacut(Evolucion[[i]], deltas[j])
+    acuts[[j]]<-acut}}
+  
+
+intersec=matrix(0, nrow =length(deltas))
+contin=matrix(0, nrow=length((deltas)))
+
+for(j in 1:length(deltas)){
+    for (i in 1:length(Evolucion)) {
+    if (0<acuts[[j]][[i]][1]& acuts[[j]][[i]][1]< 500000 & 0<acuts[[j]][[i]][2] & acuts[[j]][[i]][2]< 500000) 
+    {contin[[j]] = contin[[j]] + 1
+    }
+    if (0<acuts[[j]][[i]][1] & acuts[[j]][[i]][1]< 500000|0<acuts[[j]][[i]][2]& acuts[[j]][[i]][2]< 500000) {
+        intersec[[j]] <- intersec[[j]] + 1
+        i<-i+1
+    }
+    }
+  j<-j+1
+    
+}
+
+for(j in 1:length(deltas)){
+    FL[j] = contin[j]/length(Evolucion)
+    FU[j] = intersec[j]/length(Evolucion)
+}
+
+Frequ<-data.frame(total=c(FL,as.vector(FU[order(nrow(FU):1),])), delta=c(seq(0,1,0.001), seq(1,0,-0.001)))
+```
+
+Con la variable **Evolucion**, la freceuncia borrosa de la clase [0, 500 000] es:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Freq<-data.frame(FL, FU, "Freq"=seq(0,1,0.001))
+colnames(Freq)<-c("Inf","Sup","Freq")
+Freq
+```
+
+Si lo representamos:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+Frequ%>%
+  ggplot(aes(y=delta))+
+  geom_path(aes(x=total), color="blue")+
+  geom_point(aes(x=total), color="blue")+
+  theme_bw()+
+  labs(title= "Histograma", x="%", y="delta")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+¿Qué nos dice el histograma anterior? 
+
+*  Que el límite inferior no cambia. Esto es, para todos los deltas, el % de números incluidos dentro de nuestro intervalo es de cerca del 10%.
+
+*  En cambio el superior si se va reduciendo a medida que se incrementa delta (Cada vez se toca a un menor número de números: un 20% cuando el delta es 0, hasta el 10% cuando el delta es 1)
+
+*  Los integrantes del grupo son concientes de que en algún momento se ha cometido un error con el código y que, por tanto, la forma que finalmente nos da no es exactamente la que debería ser. Sin embargo, después de múltiples revisiones del código sin haber encontrado el error y al seguir el Histograma una forma (dentro de lo que cabe) coherente se ha optado por dejar el ejercicio a la espera de las observaciones del profesor.
+
+

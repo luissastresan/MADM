@@ -1,0 +1,197 @@
+---
+title: "HANDOUT6"
+output: html_document
+---
+
+## LUIS SASTRE SAN EMETERIO
+
+```{r setup, include=FALSE}
+
+library(igraph)
+library(Matrix)
+library(centiserve)
+library(printr)
+```
+
+```{r}
+
+Datos <- read.table("facebook_sample_anon.txt",quote = "\"", comment.char = "")
+face <- graph_from_data_frame(d = Datos,directed = FALSE)
+plot(face)
+```
+
+##Ejercicio 2
+#Para poder conjeturar que nodos son mas importantes en esta red, podemos buscar varios indices de centralidad y asi analizar cuales son dichos nodos. 
+#Divido mi grafo en 20 subgrafos para poder analizarlos mejor y calculo el paremtro degree y el lobby de cada uno:
+```{r}
+sg1 <- induced_subgraph(face,1:200)
+plot(sg1)
+a1 <- round(igraph::degree(sg1,normalized = TRUE),4)
+b1 <- lobby(sg1)
+max(a1)
+max(b1)
+
+sg2 <- induced_subgraph(face,200:400)
+plot(sg2)
+a2 <- round(igraph::degree(sg2,normalized = TRUE),4)
+b2 <- lobby(sg2)
+max(a2)
+max(b2)
+
+sg3 <- induced_subgraph(face,400:600)
+plot(sg3)
+a3 <- round(igraph::degree(sg3,normalized = TRUE),4)
+b3 <- lobby(sg3)
+max(a3)
+max(b3)
+
+sg4 <- induced_subgraph(face,600:800)
+plot(sg4)
+a4 <- round(igraph::degree(sg4,normalized = TRUE),4)
+b4 <- lobby(sg4)
+max(a4)
+max(b4)
+
+sg5 <- induced_subgraph(face,800:1000)
+plot(sg5)
+a5 <- round(igraph::degree(sg5,normalized = TRUE),4)
+b5 <- lobby(sg5)
+max(a5)
+max(b5)
+
+sg6 <- induced_subgraph(face,1000:1200)
+plot(sg6)
+a6 <- round(igraph::degree(sg6,normalized = TRUE),4)
+b6 <- lobby(sg6)
+max(a6)
+max(b6)
+
+sg7 <- induced_subgraph(face,1200:1400)
+plot(sg7)
+a7 <- round(igraph::degree(sg7,normalized = TRUE),4)
+b7 <- lobby(sg7)
+max(a7)
+max(b7)
+
+sg8 <- induced_subgraph(face,1400:1600)
+plot(sg8)
+a8 <- round(igraph::degree(sg8,normalized = TRUE),4)
+b8 <- lobby(sg8)
+max(a8)
+max(b8)
+
+sg9 <- induced_subgraph(face,1600:1800)
+plot(sg9)
+a9 <- round(igraph::degree(sg9,normalized = TRUE),4)
+b9 <- lobby(sg9)
+max(a9)
+max(b9)
+
+sg10 <- induced_subgraph(face,1800:2000)
+plot(sg10)
+a10 <- round(igraph::degree(sg10,normalized = TRUE),4)
+b10 <- lobby(sg10)
+max(a10)
+max(b10)
+
+sg11 <- induced_subgraph(face,2000:2200)
+plot(sg11)
+a11 <- round(igraph::degree(sg11,normalized = TRUE),4)
+b11 <- lobby(sg11)
+max(a11)
+max(b11)
+
+sg12 <- induced_subgraph(face,2200:2400)
+plot(sg12)
+a12 <- round(igraph::degree(sg12,normalized = TRUE),4)
+b12 <- lobby(sg12)
+max(a12)
+max(b12)
+
+sg13 <- induced_subgraph(face,2400:2600)
+plot(sg13)
+a13 <- round(igraph::degree(sg13,normalized = TRUE),4)
+b13 <- lobby(sg13)
+max(a13)
+max(b13)
+
+sg14 <- induced_subgraph(face,2600:2800)
+plot(sg14)
+a14 <- round(igraph::degree(sg14,normalized = TRUE),4)
+b14 <- lobby(sg14)
+max(a14)
+max(b14)
+
+sg15 <- induced_subgraph(face,2800:3000)
+plot(sg15)
+a15 <- round(igraph::degree(sg15,normalized = TRUE),4)
+b15 <- lobby(sg15)
+max(a15)
+max(b15)
+
+sg16 <- induced_subgraph(face,3000:3200)
+plot(sg16)
+a16 <- round(igraph::degree(sg16,normalized = TRUE),4)
+b16 <- lobby(sg16)
+max(a16)
+max(b16)
+
+sg17 <- induced_subgraph(face,3200:3400)
+plot(sg17)
+a17 <- round(igraph::degree(sg17,normalized = TRUE),4)
+b17 <- lobby(sg17)
+max(a17)
+max(b17)
+
+sg18 <- induced_subgraph(face,3400:3600)
+plot(sg18)
+a18 <- round(igraph::degree(sg18,normalized = TRUE),4)
+b18 <- lobby(sg18)
+max(a18)
+max(b18)
+
+sg19 <- induced_subgraph(face,3600:3800)
+plot(sg19)
+a19 <- round(igraph::degree(sg19,normalized = TRUE),4)
+b19 <- lobby(sg19)
+max(a19)
+max(b19)
+
+sg20 <- induced_subgraph(face,3800:4039)
+plot(sg20)
+a20 <- round(igraph::degree(sg20,normalized = TRUE),4)
+b20 <- lobby(sg20)
+max(a20)
+max(b20)
+```
+#Podemos decir que los diez estudiantes seran los que mayor grado tengan y mayores conexiones tengan en el grafo.
+
+###Ejercicio 3
+#(a) El 0.1% de los nodos serian unos 4 nodos que habria que elimimar.
+
+```{r}
+
+set.seed(1)
+rep <- sample(1:4039,4,replace = FALSE)
+face1 <- delete_vertices(face,rep)
+plot(face1)
+cone <- lobby(face1)
+mean(cone)
+
+set.seed(3)
+rep1 <- sample(1:4039,4,replace = FALSE)
+face2 <- delete_vertices(face,rep1)
+plot(face2)
+cone1 <- lobby(face2)
+mean(cone1)
+
+set.seed(3)
+rep1 <- sample(1:4039,4,replace = FALSE)
+face2 <- delete_vertices(face,rep1)
+plot(face2)
+cone1 <- lobby(face2)
+mean(cone1)
+```
+#Asi hasta las mil reproducciones
+
+#(b)
